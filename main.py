@@ -16,6 +16,8 @@ P_BOX_KEY = [
     56, 57, 51
 ]
 
+IV = "01010011011001000110011001010001011011010100100101110000010001000110111001110000011001010011100101000111011010110101000101101000"
+
 def separate_to_blocks(input_text):
     # Chagen an input text into 128 bit block
      bin_str = ''.join('{0:08b}'.format(ord(x), 'b') for x in input_text)
@@ -31,8 +33,6 @@ def separate_to_blocks(input_text):
 
      # Pad message if it's not divisible by 128
      if (block != ""):
-         while (len(block) != 128):
-             block += "0" #dummy padding
          blocks.append(block)
      return blocks
 
@@ -249,17 +249,14 @@ def key_expansion(i, key):
     return key
 
 def xor_op(str1, str2):
-
-    if (len(str1) != len(str2)):
-        return -1
-    else:
-        result = ""
-        for i, c in enumerate(str1):
-            if (str1[i] == str2[i]):
-                result += "0"
-            else:
-                result += "1"
-        return result
+    length = len(str1)
+    result = ""
+    for i in range(length):
+        if (str1[i] == str2[i]):
+            result += "0"
+        else:
+            result += "1"
+    return result
 
 def  f_function(block, key):
     res1 = xor_matrix_multipiclation(block, key)
@@ -294,24 +291,109 @@ def dechiper_block(block, key_in):
         i -= 1
     return (left_block + right_block)
 
-def encrypt(text, key):
+def padd_block(block):
+    result = block
+    while (len(block) < 128):
+        result += '00000000' # null bytes padding
+    return result
+
+def produce_counter(idx):
+    idx_bin = '{0:0128b}'.format(idx, 'b')
+    return xor_op(IV, idx_bin)
+
+def encrypt(text, key, mode="ECB"):
     blocks = separate_to_blocks(text)
     ciphertext = ""
-    for block in blocks:
-        ciphertext += enchiper_block(block, key)
+    if (mode = "ECB"):
+        for block in blocks:
+            if len(block) != 128:
+                block = padd_block(block)
+            ciphertext += enchiper_block(block, key)
+    elif (mode = "CBC"):
+        for i, block in enumerate(blocks):
+            if len(block) != 128:
+                block = padd_block(block)
+            if (i == 0):
+                block = xor_op(IV, block)
+                cipher_block = enchiper_block(block, key)
+                ciphertext += cipher_block
+            else:
+                block = xor_op(cipher_block, block)
+                cipher_block = enchiper_block(block, key)
+                ciphertext += cipher_block
+    elif (mode="CFB"):
+        for i, block in enumerate(blocks):
+            if (i == 0):
+                temp = enchiper_block(IV, key)
+                cipher_block = xor_op(block, temp)
+                ciphertext += cipher_block
+            else:
+                temp = enchiper_block(cipher_block, key)
+                cipher_block = xor_op(block, temp)
+                ciphertext += cipher_block
+    elif (mode="OFB"):
+        for i, block in enumerate(blocks):
+            if (i == 0):
+                cipher_block = enchiper_block(IV, key)
+                ciphertext += xor_op(block, cipher_block)
+            else:
+                cipher_block = enchiper_block(cipher_block, key)
+                ciphertext += xor_op(block, cipher_block)
+    elif (mode="CTR"):
+        for i, block in enumerate(blocks):
+            cipher_block = enchiper_block(produce_counter(i), key)
+            ciphertext += xor_op(block, cipher_block)
     result = ""
     i = 0
-    print (len(ciphertext))
     while (i < len(ciphertext)):
         result += chr(int(ciphertext[i:(i+8)], 2))
         i += 8
     return result
 
-def decrypt(text, key):
+def decrypt(text, key, mode="ECB"):
     blocks = separate_to_blocks(text)
     ciphertext = ""
-    for block in blocks:
-        ciphertext += dechiper_block(block, key)
+    if (mode = "ECB"):
+        for block in blocks:
+            ciphertext += dechiper_block(block, key)
+    elif (mode = "CBC"):
+        for i, block in enumerate(blocks):
+            if (i == 0):
+                cipher_block = block
+                f_output = dechiper_block(block, key)
+                result = xor_op(IV, cipher_block)
+                ciphertext += result
+            else:
+                f_output = dechiper_block(block, key)
+                result = xor_op(cipher_block, f_output)
+                cipher_block = block
+                ciphertext += result
+    elif (mode="CFB"):
+        for i, block in enumerate(blocks):
+            if (i == 0):
+                temp = dechiper_block(IV, key)
+                result = xor_op(block, temp)
+                ciphertext += result
+                cipher_block = block
+            else:
+                temp = dechiper_block(cipher_block, key)
+                result = xor_op(block, temp)
+                ciphertext += result
+                cipher_block = block
+    elif (mode="OFB"):
+        for i, block in enumerate(blocks):
+            if (i == 0):
+                f_output = dechiper_block(IV, key)
+                ciphertext += xor_op(block, f_output)
+                cipher_block = f_output
+            else:
+                f_output = dechiper_block(cipher_block, key)
+                ciphertext += xor_op(block, f_output)
+                cipher_block = f_output
+    elif (mode="CTR"):
+        for i, block in enumerate(blocks):
+            cipher_block = dechiper_block(produce_counter(i), key)
+            ciphertext += xor_op(block, cipher_block)
     result = ""
     i = 0
     while (i < len(ciphertext)):
@@ -323,11 +405,7 @@ def main():
     text = input("Input your plaintext (minimum 16 character) :")
     key = input("Input your key (must 16 character) :")
     ciphertext = encrypt(text, key)
-    print (ciphertext)
-    print (len(ciphertext))
     d = decrypt(ciphertext, key)
-    print (d)
-    print (len(d))
 
 if __name__ == "__main__":
     main()
