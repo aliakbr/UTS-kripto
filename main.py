@@ -18,10 +18,26 @@ P_BOX_KEY = [
 
 IV = "01010011011001000110011001010001011011010100100101110000010001000110111001110000011001010011100101000111011010110101000101101000"
 
+def separate_key_input(key_input):
+    block = ""
+    blocks = []
+    for i, c in enumerate(key_input):
+        if (len(block) < 16):
+            block += c
+        else:
+            blocks.append(block)
+            block = ""
+            block += c
+    # Pad message if it's not divisible by 128
+    if (block != ""):
+        while len(block) < 16:
+            block += '\0'
+        blocks.append(block)
+    return blocks
+
 def separate_to_blocks(input_text):
     # Chagen an input text into 128 bit block
     bin_str = ''.join('{0:08b}'.format(ord(x), 'b') for x in input_text)
-    count = 0
     block = ""
     blocks = []
     for i, c in enumerate(bin_str):
@@ -266,29 +282,34 @@ def  f_function(block, key):
     result = convert_matrix_to_block(res4)
     return result
 
-def enchiper_block(block, key_in):
+def enchiper_block(block, keys):
     # Encryption process
     left_block, right_block = separate_text(block)
-    for i in range(10):
-        temp = left_block
-        left_block = right_block
-        key = key_expansion(i, key_in)
-        right_block_mat = convert_block_to_matrix(right_block)
-        key = convert_block_to_matrix(key)
-        right_block = xor_op(temp, f_function(right_block_mat, key))
+    key_inputs = separate_key_input(key_input=keys)
+    for key_in in key_inputs:
+        for i in range(10):
+            temp = left_block
+            left_block = right_block
+            key = key_expansion(i, key_in)
+            right_block_mat = convert_block_to_matrix(right_block)
+            key = convert_block_to_matrix(key)
+            right_block = xor_op(temp, f_function(right_block_mat, key))
     return (left_block + right_block)
 
-def dechiper_block(block, key_in):
+def dechiper_block(block, keys):
     left_block, right_block = separate_text(block)
-    i = 9
-    while (i >= 0):
-        temp = right_block
-        right_block = left_block
-        key = key_expansion(i, key_in)
-        left_block_mat = convert_block_to_matrix(right_block)
-        key = convert_block_to_matrix(key)
-        left_block = xor_op(temp, f_function(left_block_mat, key))
-        i -= 1
+    key_inputs = separate_key_input(key_input=keys)
+    key_inputs = key_inputs[::-1]
+    for key_in in key_inputs:
+        i = 9
+        while (i >= 0):
+            temp = right_block
+            right_block = left_block
+            key = key_expansion(i, key_in)
+            left_block_mat = convert_block_to_matrix(right_block)
+            key = convert_block_to_matrix(key)
+            left_block = xor_op(temp, f_function(left_block_mat, key))
+            i -= 1
     return (left_block + right_block)
 
 def padd_block(block):
@@ -406,15 +427,16 @@ def decrypt(text, key, mode="ECB"):
 def main():
     text = input("Input your plaintext (minimum 16 character) :")
     key = input("Input your key (must 16 character) :")
+    start_time = time.time()
     ciphertext = encrypt(text, key, mode="ECB")
+    d = decrypt(ciphertext, key, mode="ECB")
+    print("Execution time --- %s ms ---" % (time.time() - start_time))
     print ("---------------------------")
     print ("Ciphertext : {}".format(ciphertext))
-    d = decrypt(ciphertext, key, mode="ECB")
     print ("---------------------------")
     print ("Plaintext : {}".format(d))
 
 import time
+from simple_aes_cipher import AESCipher, generate_secret_key
 if __name__ == "__main__":
-    start_time = time.time()
     main()
-    print("--- %s ms ---" % (time.time() - start_time))
