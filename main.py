@@ -406,12 +406,15 @@ def decrypt(text, key, mode="ECB"):
 def main():
     text = input("Input your plaintext (minimum 16 character) :")
     key = input("Input your key (must 16 character) :")
-    ciphertext = encrypt(text, key, mode="CTR")
+    ciphertext = encrypt(text, key, mode="ECB")
     print ("---------------------------")
     print ("Ciphertext : {}".format(ciphertext))
-    d = decrypt(ciphertext, key, mode="CTR")
+    d = decrypt(ciphertext, key, mode="ECB")
     print ("---------------------------")
     print ("Plaintext : {}".format(d))
 
+import time
 if __name__ == "__main__":
+    start_time = time.time()
     main()
+    print("--- %s ms ---" % (time.time() - start_time))
